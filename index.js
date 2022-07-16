@@ -1,6 +1,7 @@
 const db = require("./db/connection");
 const inquirer = require("inquirer");
-
+const cTable = require("console.table");
+const mysql = require('mysql2');
 
 db.connect((err) => {
     if (err) throw err;
@@ -30,12 +31,15 @@ const startPrompt = function () {
   .then ((answers) => {
       switch (answers.initialQuestion) {
           case 'View all departments':
+              viewDepartments();
               break;
 
           case 'View all roles':
+              viewRoles();
               break;
 
           case 'View all employees':
+              viewEmployees();
               break;
 
           case 'Add a department':
@@ -57,3 +61,63 @@ const startPrompt = function () {
   });
 }
 
+// View all departments
+const viewDepartments = () => {
+    const sql = `SELECT * FROM departments`;
+    db.query(sql, (err, rows) => {
+        if (err) {
+                console.log(err);
+                initializeApp();
+                return;
+        } else {
+        console.table(rows);
+        startPrompt();
+        }
+    });
+};
+
+// View all roles
+const viewRoles = () => {
+    const sql = `SELECT
+    roles.id,
+    roles.title AS job,
+    roles.salary,
+    departments.dept_name AS department
+  FROM roles
+  LEFT JOIN departments
+  ON roles.dept_id = departments.id;
+  `;
+    db.query(sql, (err, rows) => {
+      if(err) {
+        console.log(err);
+        return;
+      }
+      console.table(rows);
+      startPrompt();
+    });
+};
+
+// View all employees
+const viewEmployees = () => {
+    const sql =   `
+    SELECT employees.id,
+    employees.first_name,
+    employees.last_name,
+    roles.title AS role,
+    roles.salary,
+    departments.dept_name AS department,
+    CONCAT (manager.first_name, ' ', manager.last_name) AS manager
+    FROM employees
+    LEFT JOIN roles ON employees.role_id = roles.id
+    LEFT JOIN departments on roles.dept_id = departments.id
+    LEFT JOIN employees manager ON employees.manager_id = manager.id
+    `;
+    db.query(sql, (err, rows) => {
+        if(err) {
+            console.log(err);
+            return;
+        }
+        console.table(rows);
+        startPrompt();
+    });
+};
