@@ -43,6 +43,7 @@ const startPrompt = function () {
               break;
 
           case 'Add a department':
+              addDepartment();
               break;
 
           case 'Add a role':
@@ -73,6 +74,30 @@ const viewDepartments = () => {
         console.table(rows);
         startPrompt();
         }
+    });
+};
+// Add a new department
+const addDepartment = () => {
+    inquirer
+      .prompt([
+        {
+          type: "input",
+          name: "dept_name",
+          message: "Enter the name of the department you would like to add.",
+        },
+      ])
+      .then((answer) => {
+        const sql = `INSERT INTO departments (dept_name) VALUES (?)`;
+        db.query(sql, answer.dept_name, (err, result) => {
+          if (err) {
+            console.log(err);
+            initializeApp();
+            return;
+          } else {
+          console.log(`Added ${answer.dept_name} to the database.`);
+          startPrompt();
+          }
+        });
     });
 };
 
