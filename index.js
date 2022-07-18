@@ -47,6 +47,7 @@ const startPrompt = function () {
               break;
 
           case 'Add a role':
+              newRolePrompt();
               break;
 
           case 'Add a employee':
@@ -76,6 +77,7 @@ const viewDepartments = () => {
         }
     });
 };
+
 // Add a new department
 const addDepartment = () => {
     inquirer
@@ -101,6 +103,7 @@ const addDepartment = () => {
     });
 };
 
+
 // View all roles
 const viewRoles = () => {
     const sql = `SELECT
@@ -119,6 +122,70 @@ const viewRoles = () => {
       }
       console.table(rows);
       startPrompt();
+    });
+};
+
+// Get role params
+const newRolePrompt = () => {
+    inquirer.prompt([
+      {
+        type: "input",
+        name: "role",
+        message: "Please enter the name of the role you would like to add.",
+      },
+      {
+        type: "input",
+        name: "salary",
+        message: "Please enter the salary of the role you are adding.",
+      },
+    ])
+    .then((answers) => {
+    const params = [answers.role, answers.salary];
+
+// Connect to department id
+    const deptsql = `SELECT id, dept_name FROM departments`;
+
+    db.query(deptsql, (err, deptData) => {
+        if (err) {
+          console.log(err);
+        } else {
+          const deptArr = deptData.map(({ id, dept_name }) => ({
+            name: dept_name,
+            value: id,
+          }));
+          inquirer
+            .prompt([
+              {
+                type: "list",
+                name: "department",
+                message: "What department is this role in?",
+                choices: deptArr,
+              },
+            ])
+            .then((deptChoice) => {
+              const newRoleDept = deptChoice.department;
+              params.push(newRoleDept);
+
+              addNewRole(params);
+            });
+        }
+      });
+    });
+};
+
+// Add new role
+const addNewRole = (params) => {
+    const sql = `INSERT INTO roles (title, salary, dept_id)
+                  VALUES (?, ?, ?)`;
+
+    db.query(sql, params, (err, result) => {
+      if (err) {
+        console.log(err);
+      } else {
+        console.log(`Added to roles.`);
+        viewRoles();
+        startPrompt();
+      }
     });
 };
 
