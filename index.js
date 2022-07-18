@@ -1,6 +1,6 @@
 const db = require("./db/connection");
 const inquirer = require("inquirer");
-const cTable = require("console.table");
+const cTable = require('console.table');
 const mysql = require('mysql2');
 
 db.connect((err) => {
@@ -50,10 +50,12 @@ const startPrompt = function () {
               newRolePrompt();
               break;
 
-          case 'Add a employee':
+          case 'Add an employee':
+              newEmployeePrompt();
               break;
 
           case 'Update an employee role':
+              chooseEmployee();
               break;
 
           case '>>>EXIT<<<':
@@ -125,7 +127,7 @@ const viewRoles = () => {
     });
 };
 
-// Get role params
+// Get new role params
 const newRolePrompt = () => {
     inquirer.prompt([
       {
@@ -211,5 +213,161 @@ const viewEmployees = () => {
         }
         console.table(rows);
         startPrompt();
+    });
+};
+
+const newEmployeePromptArray = [
+    {
+      type: "input",
+      name: "firstname",
+      message: "What is the first name of your employee?",
+    },
+    {
+      type: "input",
+      name: "lastname",
+      message: "What is the last name of your employee?",
+    },
+  ];
+
+// Get first name, last name, and role for new employee
+const newEmployeePrompt = () => {
+    inquirer.prompt(newEmployeePromptArray)
+    .then((answers) => {
+        const params = [answers.firstname, answers.lastname];
+        const roleSql = `SELECT title, id FROM roles`;
+
+        db.promise()
+          .query(roleSql)
+          .then(([rows, fields]) => {
+            const roleArr = rows.map(({ title, id }) => ({
+              name: title,
+              value: id,
+            }));
+            inquirer.prompt([
+                {
+                  type: "list",
+                  name: "role",
+                  choices: roleArr,
+                },
+              ])
+            .then((roleChoice) => {
+            const newEmployeeRole = roleChoice.role;
+            params.push(newEmployeeRole);
+            newEmpManager(params);
+            });
+        });
+    });
+};
+
+// Get manager for the new employee
+const newEmpManager = params => {
+    const managerSql = `SELECT first_name, last_name, id FROM employees`;
+
+    db.promise().query(managerSql)
+    .then(([rows, fields]) => {
+        const managerArr = rows.map(
+            ({ first_name, last_name, id }) => ({
+            name: first_name + " " + last_name,
+            value: id,
+            })
+        );
+        inquirer.prompt([
+            {
+                type: "list",
+                name: "manager",
+                choices: managerArr,
+            },
+            ])
+        .then((managerChoice) => {
+            const newEmployeeManager = managerChoice.manager;
+            params.push(newEmployeeManager);
+            addNewEmployee(params);
+        });
+    });
+};
+
+// Add a new employee with the params
+const addNewEmployee = params => {
+    const sql = `INSERT INTO employees (first_name, last_name, role_id, manager_id)
+            VALUES (?, ?, ?, ?)`;
+
+    db.query(sql, params, (err, result) => {
+    if (err) {
+        console.log(err);
+    } else {
+        console.log(`Added new employee to the database!`);
+        viewEmployees();
+    }
+    });
+};
+
+// Select employee to update role
+const chooseEmployee = () => {
+    const employeeSql = `SELECT * FROM employees`;
+    const params = [];
+    db.promise().query(employeeSql)
+    .then(( [ rows, fields ]) => {
+        const employeeArr = rows.map(( { id, first_name, last_name  }) => ({
+            name: first_name + ' ' + last_name,
+            value: id
+        }));
+        inquirer.prompt([
+            {
+                type: 'list',
+                name: 'employee',
+                message: 'Which employee are you updating?',
+                choices: employeeArr
+            }
+        ])
+        .then((employeeChoice) => {
+            const chosenEmployee = employeeChoice.employee;
+            params.push(chosenEmployee);
+            chooseNewRole(params);
+        })
+
+    })
+};
+
+// Choose a new role for the employee
+const chooseNewRole = params => {
+    const roleSql = `SELECT * FROM roles`;
+    db.promise().query(roleSql)
+    .then(( [ rows, fields ]) => {
+        const roles = rows.map(( { title, id }) => ({
+            name: title,
+            value: id
+        }))
+        console.log(roles);
+
+        inquirer.prompt([
+            {
+                type: 'list',
+                name: 'role',
+                message: 'What is the employees new role?',
+                choices: roles
+            }
+        ])
+        .then(roleChoice => {
+            const newRole = roleChoice.role;
+            params.push(newRole);
+            let employee = params[0];
+            params[1] = employee;
+            params[0] = newRole;
+
+            updateRole(params);
+        })
+    });
+};
+
+// Update the employee role with params
+const updateRole = params => {
+    const sql = `UPDATE employees SET role_id = ? WHERE id = ?`;
+    db.query(sql, params, (err, result) => {
+        if(err) {
+            console.log(err);
+        } else {
+            console.log(`Updated the employee role!`);
+            viewEmployees();
+        }
     });
 };
